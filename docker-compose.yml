@@ -1,0 +1,19 @@
+services:
+  backend:
+    build:
+      context: ./Back
+      dockerfile: Dockerfile
+    container_name: virtualpet_backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./Back/.env
+    restart: always
+    # Opcional: Si necesitas que el backend espere a una base de datos local
+    # depends_on:
+    #   - db
+
+# Si más adelante decides poner la DB en Docker, la añadiríamos aquí:
+#  db:
+#    image: mysql:8.0
+#    ...
