@@ -105,11 +105,14 @@ class AuthService(IAuthService):
         """
         user = self.repo.get_by_email(datos.email)
 
+        # Seguridad: no especificar si falló el email o la contraseña para evitar enumeración.
+        msg_error = "Email o contraseña incorrectos."
+
         if not user:
-            raise CredencialesInvalidasError("El email ingresado no está registrado.")
+            raise CredencialesInvalidasError(msg_error)
 
         if not verify_password(datos.password, user.password_hash):
-            raise CredencialesInvalidasError("La contraseña es incorrecta. Intentá de nuevo.")
+            raise CredencialesInvalidasError(msg_error)
 
         if not user.activo:
             raise UsuarioInactivoError(
