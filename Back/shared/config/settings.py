@@ -1,7 +1,12 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
+from pydantic import field_validator
+from typing import List, Union
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+       env_file=".env",
+       extra="ignore"
+    )
     APP_NAME: str = "Virtual Pet API"
     DEBUG: bool = True
 
@@ -14,15 +19,23 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24hs
 
     # CORS
-    ALLOWED_ORIGINS: List[str] = ["http://localhost:5173","http://localhost:5174","http://localhost:3000"]
-
-    # AWS S3 (imágenes — configurar cuando corresponda)
-    AWS_REGION: str = "sa-east-1"
-    AWS_ACCESS_KEY: str = ""
-    AWS_SECRET_KEY: str = ""
-    S3_BUCKET_NAME: str = "virtual-pet-productos"
-    CLOUDFRONT_DOMAIN: str = ""
-
-    model_config = SettingsConfigDict(env_file=".env")
-
-settings = Settings()
+    # IMPORTANTE: Cambia List[str] por Union[List[str], str] para que el .env sea más flexible
+    ALLOWED_ORIGINS: Union[List[str], str] =  ["http://localhost:5173","http://localhost:5174","http://localhost:3000"]
+   
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
+        if isinstance(v, str) and not v.startswith("["):
+            return [i.strip() for i in v.split(",")]
+        return v
+   
+    # AWS S3 (imágenes)
+        AWS_REGION: str = "sa-east-1"
+        AWS_ACCESS_KEY: str = ""
+        AWS_SECRET_KEY: str = ""
+        S3_BUCKET_NAME: str = "virtual-pet-productos"
+        CLOUDFRONT_DOMAIN: str = ""
+   
+        # BORRA LA LÍNEA QUE ESTABA AQUÍ (la de model_config duplicada)
+   
+    settings = Settings()
