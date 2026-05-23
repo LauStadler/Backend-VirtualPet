@@ -36,6 +36,5 @@ class Settings(BaseSettings):
         S3_BUCKET_NAME: str = "virtual-pet-productos"
         CLOUDFRONT_DOMAIN: str = ""
    
-        # BORRA LA LÍNEA QUE ESTABA AQUÍ (la de model_config duplicada)
-   
-    settings = Settings()
+
+settings = Settings()
