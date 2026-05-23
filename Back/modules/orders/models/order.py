@@ -33,15 +33,20 @@ class OrderEstado(str, enum.Enum):
     PREPARADO = "preparado"
     """El depósito está armando el paquete."""
 
+    EN_PREPARACION = "en_preparacion"
+
     ENVIADO = "enviado"
     """El paquete salió del depósito hacia el domicilio del cliente."""
-
+    
+    ENTREGADO = "entregado"
 
 # Define el orden válido de transiciones de estado.
 TRANSICIONES_VALIDAS: dict[OrderEstado, list[OrderEstado]] = {
-    OrderEstado.PENDIENTE: [OrderEstado.PREPARADO],
-    OrderEstado.PREPARADO: [OrderEstado.PENDIENTE, OrderEstado.ENVIADO],
-    OrderEstado.ENVIADO:   [OrderEstado.PREPARADO],
+    OrderEstado.PENDIENTE: [OrderEstado.EN_PREPARACION],
+    OrderEstado.EN_PREPARACION: [OrderEstado.PENDIENTE, OrderEstado.PREPARADO],
+    OrderEstado.PREPARADO: [OrderEstado.ENVIADO, OrderEstado.EN_PREPARACION],
+    OrderEstado.ENVIADO:   [OrderEstado.PREPARADO, OrderEstado.ENTREGADO],
+    OrderEstado.ENTREGADO: [OrderEstado.ENVIADO],
 }
 """
 Mapa de transiciones válidas de estado.
