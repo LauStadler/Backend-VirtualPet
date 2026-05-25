@@ -12,6 +12,7 @@ No contiene lógica de negocio — eso vive en AuthService.
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from shared.dependencies.database import get_db
 from shared.dependencies.auth import get_current_user, require_role
@@ -21,6 +22,7 @@ from modules.auth.services.auth_service import (
     EmailYaRegistradoError,
     CredencialesInvalidasError,
     UsuarioInactivoError,
+    UsuarioNoEncontradoError,
 )
 from modules.auth.schemas.user_schema import (
     RegisterRequest,
@@ -139,3 +141,47 @@ def create_user(
         )
 
     return UserResponse.model_validate(user)
+
+
+@router.get(
+    "/users",
+    response_model=list[UserResponse],
+    summary="Listar usuarios (solo admin)",
+    description="Permite a un administrador ver la lista de todos los usuarios, con opción de filtrar por rol.",
+)
+def list_users(
+    role: Optional[UserRole] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+) -> list[UserResponse]:
+    """
+    Requiere: JWT de usuario con rol ADMIN.
+    """
+    service = AuthService(db)
+    users = service.listar_usuarios(role=role)
+    return [UserResponse.model_validate(u) for u in users]
+
+
+@router.delete(
+    "/users/{user_id}",
+    response_model=UserResponse,
+    summary="Eliminar usuario (solo admin)",
+    description="Permite a un administrador desactivar a un usuario por su ID.",
+)
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+) -> UserResponse:
+    """
+    Requiere: JWT de usuario con rol ADMIN.
+    """
+    service = AuthService(db)
+    try:
+        user = service.eliminar_usuario(user_id)
+        return UserResponse.model_validate(user)
+    except UsuarioNoEncontradoError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )

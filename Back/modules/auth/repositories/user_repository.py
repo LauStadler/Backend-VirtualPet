@@ -69,6 +69,25 @@ class UserRepository:
         stmt = select(User.id).where(User.email == email.lower())
         return self.db.scalar(stmt) is not None
 
+    def get_all(self, role: Optional[UserRole] = None) -> list[User]:
+        """
+        Retorna todos los usuarios de la base de datos.
+
+        Args:
+            role: Opcional. Si se provee, filtra los usuarios por ese rol.
+
+        Returns:
+            Lista de objetos User.
+        """
+        stmt = select(User)
+        if role:
+            stmt = stmt.where(User.role == role)
+        
+        # Ordenar por fecha de creación descendente para ver los más nuevos primero
+        stmt = stmt.order_by(User.created_at.desc())
+        
+        return list(self.db.scalars(stmt).all())
+
     def create(
         self,
         nombre: str,

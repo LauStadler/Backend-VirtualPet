@@ -12,6 +12,7 @@ lanza excepciones de dominio propias que el controller traduce.
 from abc import ABC, abstractmethod
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
+from typing import Optional
 
 from modules.auth.repositories.user_repository import UserRepository
 from modules.auth.models.user import User, UserRole
@@ -35,6 +36,11 @@ class UsuarioInactivoError(Exception):
     pass
 
 
+class UsuarioNoEncontradoError(Exception):
+    """Se lanza cuando se busca un usuario por ID y no existe."""
+    pass
+
+
 class IAuthService(ABC):
     """Interfaz para el servicio de autenticación."""
 
@@ -48,6 +54,14 @@ class IAuthService(ABC):
 
     @abstractmethod
     def crear_usuario_admin(self, datos: CreateUserAdminRequest) -> User:
+        pass
+
+    @abstractmethod
+    def listar_usuarios(self, role: Optional[UserRole] = None) -> list[User]:
+        pass
+
+    @abstractmethod
+    def eliminar_usuario(self, user_id: int) -> User:
         pass
 
     @abstractmethod
@@ -153,6 +167,22 @@ class AuthService(IAuthService):
             password_hash=password_hash,
             role=datos.role,
         )
+
+    def listar_usuarios(self, role: Optional[UserRole] = None) -> list[User]:
+        """
+        Retorna la lista de usuarios. Solo debe llamarlo un ADMIN.
+        """
+        return self.repo.get_all(role=role)
+
+    def eliminar_usuario(self, user_id: int) -> User:
+        """
+        Desactiva un usuario por su ID. Solo debe llamarlo un ADMIN.
+        """
+        user = self.repo.get_by_id(user_id)
+        if not user:
+            raise UsuarioNoEncontradoError(f"No se encontró el usuario con ID {user_id}")
+        
+        return self.repo.deactivate(user)
 
     def obtener_perfil(self, user_id: int) -> User:
         """

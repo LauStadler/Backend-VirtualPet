@@ -58,3 +58,64 @@ def test_get_me_endpoint(client):
 def test_get_me_unauthorized(client):
     response = client.get("/auth/me")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+def test_admin_create_user_success(client, db_session):
+    # 1. Crear un admin para poder llamar al endpoint
+    from modules.auth.models.user import User, UserRole
+    from shared.utils.security import hash_password
+    
+    admin_user = User(
+        nombre="Admin",
+        apellido="Sist",
+        email="admin_test@email.com",
+        password_hash=hash_password("admin123"),
+        role=UserRole.ADMIN
+    )
+    db_session.add(admin_user)
+    db_session.commit()
+    
+    # Login para obtener token de admin
+    login_res = client.post("/auth/login", json={
+        "email": "admin_test@email.com",
+        "password": "admin123"
+    })
+    token = login_res.json()["access_token"]
+    
+    # 2. Crear un usuario de depósito
+    payload = {
+        "nombre": "Empleado",
+        "apellido": "Deposito",
+        "email": "deposito_test@email.com",
+        "password": "password123",
+        "role": "deposito"
+    }
+    headers = {"Authorization": f"Bearer {token}"}
+    response = client.post("/auth/users", json=payload, headers=headers)
+    
+    assert response.status_code == status.HTTP_201_CREATED
+    assert response.json()["email"] == "deposito_test@email.com"
+    assert response.json()["role"] == "deposito"
+
+def test_non_admin_cannot_create_user(client, db_session):
+    # 1. Crear un usuario común (cliente)
+    payload_reg = {
+        "nombre": "Cliente",
+        "apellido": "Test",
+        "email": "cliente_test@email.com",
+        "password": "password123"
+    }
+    reg_res = client.post("/auth/register", json=payload_reg)
+    token = reg_res.json()["access_token"]
+    
+    # 2. Intentar crear otro usuario
+    payload = {
+        "nombre": "Hack",
+        "apellido": "User",
+        "email": "hack@email.com",
+        "password": "password123",
+        "role": "admin"
+    }
+    headers = {"Authorization": f"Bearer {token}"}
+    response = client.post("/auth/users", json=payload, headers=headers)
+    
+    assert response.status_code == status.HTTP_403_FORBIDDEN
