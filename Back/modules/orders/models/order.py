@@ -25,7 +25,7 @@ class OrderEstado(str, enum.Enum):
     El backoffice es responsable de avanzar los estados manualmente.
 
     Flujo esperado:
-        PENDIENTE → PREPARADO → ENVIADO
+        PENDIENTE -> PREPARADO -> EN_PREPARACION -> DESPACHADO -> EN TRANSITO -> ENTREGADO
     """
     PENDIENTE = "pendiente"
     """Orden recién creada, aún no procesada por el depósito."""
@@ -35,8 +35,12 @@ class OrderEstado(str, enum.Enum):
 
     EN_PREPARACION = "en_preparacion"
 
-    ENVIADO = "enviado"
-    """El paquete salió del depósito hacia el domicilio del cliente."""
+    DESPACHADO = "despachado"
+    """El paquete salió del depósito, lo tiene el courier."""
+    """El cliente lo vera como 'en manos del transportista'. """
+    
+    EN_TRANSITO = "en_transito"
+    """el envio ya se encuentra en camino al domicilio. """
     
     ENTREGADO = "entregado"
 
@@ -44,9 +48,10 @@ class OrderEstado(str, enum.Enum):
 TRANSICIONES_VALIDAS: dict[OrderEstado, list[OrderEstado]] = {
     OrderEstado.PENDIENTE: [OrderEstado.EN_PREPARACION],
     OrderEstado.EN_PREPARACION: [OrderEstado.PENDIENTE, OrderEstado.PREPARADO],
-    OrderEstado.PREPARADO: [OrderEstado.ENVIADO, OrderEstado.EN_PREPARACION],
-    OrderEstado.ENVIADO:   [OrderEstado.PREPARADO, OrderEstado.ENTREGADO],
-    OrderEstado.ENTREGADO: [OrderEstado.ENVIADO],
+    OrderEstado.PREPARADO: [OrderEstado.DESPACHADO, OrderEstado.EN_PREPARACION],
+    OrderEstado.DESPACHADO:   [OrderEstado.PREPARADO, OrderEstado.ENTREGADO, OrderEstado.EN_TRANSITO],
+    OrderEstado.EN_TRANSITO: [OrderEstado.ENTREGADO],
+    OrderEstado.ENTREGADO: [OrderEstado.DESPACHADO],
 }
 """
 Mapa de transiciones válidas de estado.
