@@ -30,11 +30,26 @@ class Settings(BaseSettings):
         return v
    
     # AWS S3 (imágenes)
+<<<<<<< HEAD
     AWS_REGION: str = "sa-east-1"
     AWS_ACCESS_KEY: str = ""
     AWS_SECRET_KEY: str = ""
     S3_BUCKET_NAME: str = "virtual-pet-productos"
     CLOUDFRONT_DOMAIN: str = ""
+=======
+        AWS_REGION: str = "sa-east-1"
+        AWS_ACCESS_KEY: str = ""
+        AWS_SECRET_KEY: str = ""
+        S3_BUCKET_NAME: str = "virtual-pet-productos"
+        CLOUDFRONT_DOMAIN: str = ""
+    
+    # Cloudflare R2 (Imagenes)
+    R2_ENDPOINT_URL: str = ""
+    R2_ACCESS_KEY: str = ""
+    R2_SECRET_KEY: str = ""
+    R2_BUCKET_NAME: str = "virtual-pet-backup"
+    R2_PUBLIC_URL: str = ""
+>>>>>>> d32cdfa94de7ed813752ec7e5386b2ec142eaec7
    
 
 settings = Settings()

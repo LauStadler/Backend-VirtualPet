@@ -81,11 +81,7 @@ def get_order(
     """Requiere: JWT con rol DEPOSITO o ADMIN."""
     service = OrderService(db)
     try:
-        orders = service.listar_todas()
-        order = next((o for o in orders if o.id == order_id), None)
-        if order is None:
-            raise OrdenNoEncontradaError(f"La orden {order_id} no existe.")
-        return order
+        return service.obtener_una_backoffice(order_id)
     except OrdenNoEncontradaError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
