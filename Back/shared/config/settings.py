@@ -30,11 +30,11 @@ class Settings(BaseSettings):
         return v
    
     # AWS S3 (imágenes)
-        AWS_REGION: str = "sa-east-1"
-        AWS_ACCESS_KEY: str = ""
-        AWS_SECRET_KEY: str = ""
-        S3_BUCKET_NAME: str = "virtual-pet-productos"
-        CLOUDFRONT_DOMAIN: str = ""
+    AWS_REGION: str = "sa-east-1"
+    AWS_ACCESS_KEY: str = ""
+    AWS_SECRET_KEY: str = ""
+    S3_BUCKET_NAME: str = "virtual-pet-productos"
+    CLOUDFRONT_DOMAIN: str = ""
    
 
 settings = Settings()
