@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from shared.config.settings import settings
 from shared.exceptions.handlers import register_exception_handlers
@@ -31,9 +30,6 @@ app.add_middleware(
 )
 
 register_exception_handlers(app)
-
-# Servir archivos estáticos (imágenes de productos)
-app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 
 app.include_router(auth_router,       prefix="/auth",       tags=["Auth"])
 app.include_router(catalog_router,    prefix="/catalog",    tags=["Catálogo"])
