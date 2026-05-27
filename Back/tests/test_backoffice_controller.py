@@ -27,12 +27,12 @@ def test_backoffice_change_order_status(admin_client, db_session):
     db_session.add(order)
     db_session.commit()
     
-    # Cambiar a PREPARADO (transición válida)
-    payload = {"estado": OrderEstado.PREPARADO}
+    # Cambiar a EN_PREPARACION (transición válida desde PENDIENTE)
+    payload = {"estado": OrderEstado.EN_PREPARACION}
     response = client.patch(f"/backoffice/orders/{order.id}/estado", json=payload)
     
     assert response.status_code == status.HTTP_200_OK
-    assert response.json()["estado"] == OrderEstado.PREPARADO
+    assert response.json()["estado"] == OrderEstado.EN_PREPARACION
 
 def test_backoffice_invalid_status_transition(admin_client, db_session):
     client, user = admin_client
@@ -43,8 +43,8 @@ def test_backoffice_invalid_status_transition(admin_client, db_session):
     db_session.add(order)
     db_session.commit()
     
-    # Intentar saltar a ENVIADO (transición inválida desde PENDIENTE)
-    payload = {"estado": OrderEstado.ENVIADO}
+    # Intentar saltar a ENTREGADO (transición inválida desde PENDIENTE)
+    payload = {"estado": OrderEstado.ENTREGADO}
     response = client.patch(f"/backoffice/orders/{order.id}/estado", json=payload)
     
     assert response.status_code == status.HTTP_409_CONFLICT

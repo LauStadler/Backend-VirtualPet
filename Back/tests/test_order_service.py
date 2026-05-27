@@ -16,16 +16,16 @@ def sample_order(db_session):
 
 def test_cambiar_estado_valido(db_session, sample_order):
     service = OrderService(db_session)
-    # PENDIENTE -> PREPARADO
+    # PENDIENTE -> EN_PREPARACION
+    service.cambiar_estado(sample_order.id, OrderEstado.EN_PREPARACION)
+    assert sample_order.estado == OrderEstado.EN_PREPARACION
+    
+    # EN_PREPARACION -> PREPARADO
     service.cambiar_estado(sample_order.id, OrderEstado.PREPARADO)
     assert sample_order.estado == OrderEstado.PREPARADO
-    
-    # PREPARADO -> ENVIADO
-    service.cambiar_estado(sample_order.id, OrderEstado.ENVIADO)
-    assert sample_order.estado == OrderEstado.ENVIADO
 
 def test_cambiar_estado_invalido(db_session, sample_order):
     service = OrderService(db_session)
-    # PENDIENTE -> ENVIADO (Salteando PREPARADO)
+    # PENDIENTE -> DESPACHADO (Salteando pasos)
     with pytest.raises(TransicionEstadoInvalidaError):
-        service.cambiar_estado(sample_order.id, OrderEstado.ENVIADO)
+        service.cambiar_estado(sample_order.id, OrderEstado.DESPACHADO)

@@ -32,9 +32,9 @@ def create_test_orders():
         test_data = [
             {"estado": OrderEstado.PENDIENTE, "direccion": "Av. Colón 1234, Mar del Plata"},
             {"estado": OrderEstado.PENDIENTE, "direccion": "Guemes 2500, Mar del Plata"},
-            {"estado": OrderEstado.PREPARADO, "direccion": "San Juan 500, Mar del Plata"},
-            {"estado": OrderEstado.PREPARADO, "direccion": "Alvarado 3200, Mar del Plata"},
-            {"estado": OrderEstado.ENVIADO,   "direccion": "Rivadavia 150, Mar del Plata"},
+            {"estado": OrderEstado.EN_PREPARACION, "direccion": "San Juan 500, Mar del Plata"},
+            {"estado": OrderEstado.EN_PREPARACION, "direccion": "Alvarado 3200, Mar del Plata"},
+            {"estado": OrderEstado.PREPARADO,   "direccion": "Rivadavia 150, Mar del Plata"},
         ]
 
         for i, data in enumerate(test_data):
