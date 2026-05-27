@@ -24,6 +24,7 @@ Regla crítica de negocio — atomicidad del checkout:
 from abc import ABC, abstractmethod
 from sqlalchemy.orm import Session
 
+from modules.catalog.models.product import Product
 from modules.orders.repositories.order_repository import OrderRepository
 from modules.orders.models.order import Order, OrderEstado, TRANSICIONES_VALIDAS
 from modules.orders.schemas.order_schema import (
@@ -116,23 +117,35 @@ class OrderService(IOrderService):
         Si cualquier paso falla, se realiza un rollback() para mantener la integridad.
         """
         try:
-            # Paso 1: crear la orden y sus items
+            # 1. Validar productos y RECALCULAR precios desde la DB para evitar inyecciones
+            total_real = 0.0
+            for item in items:
+                product = self.db.query(Product).filter(Product.id == item.product_id).first()
+                if not product:
+                    raise Exception(f"Producto {item.product_id} no encontrado")
+                
+                # Forzamos los valores reales de la DB
+                item.precio_unitario = float(product.precio)
+                item.subtotal = float(product.precio * item.cantidad)
+                total_real += item.subtotal
+
+            # 2. Crear la orden y sus items con los datos ya validados
             order = self.repo.crear(
                 user_id=user_id,
                 items=items,
-                total=total,
+                total=float(total_real),
                 direccion_entrega=direccion_entrega,
             )
 
-            # Paso 2: descontar stock de cada item con bloqueo pesimista
+            # 3. Descontar stock de cada item con bloqueo pesimista
             catalog_service = CatalogService(self.db)
             for item in items:
                 # El método descontar_stock ahora usa with_for_update() internamente
                 catalog_service.descontar_stock(item.product_id, item.cantidad)
 
-            # Paso 3: registrar el pago simulado
+            # 4. Registrar el pago simulado
             from modules.payments.services.payment_service import PaymentService
-            PaymentService(self.db).procesar(orden_id=order.id, monto=total)
+            PaymentService(self.db).procesar(orden_id=order.id, monto=float(total_real))
 
             # Commit final de toda la unidad de trabajo
             self.db.commit()
