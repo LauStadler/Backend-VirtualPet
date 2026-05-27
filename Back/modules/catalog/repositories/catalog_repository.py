@@ -10,7 +10,7 @@ por el módulo de orders al confirmar una compra, nunca por un endpoint HTTP.
 """
 
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, text
 from typing import Optional
 
 from modules.catalog.models.product import Product
@@ -76,11 +76,10 @@ class CatalogRepository:
             # Ej: "alimen perr" -> "+alimen* +perr*"
             terminos_booleanos = " ".join([f"+{word}*" for word in busqueda.split() if len(word) > 0])
             
-            # Usamos match().against() con 'IN BOOLEAN MODE'
-            # Nota: .op() permite añadir el modificador necesario para MySQL
-            match_clause = func.match(Product.nombre, Product.descripcion).against(
-                terminos_booleanos
-            ).op('IN BOOLEAN MODE')
+            # Usamos el operador AGAINST nativo de MySQL con modo booleano
+            match_clause = func.match(Product.nombre, Product.descripcion).op("AGAINST")(
+                text(f"('{terminos_booleanos}' IN BOOLEAN MODE)")
+            )
             
             stmt = stmt.where(match_clause)
 
@@ -102,11 +101,10 @@ class CatalogRepository:
         # 1. Conteo total (Query independiente para evitar colisiones de joins/aliases)
         count_stmt = select(func.count(Product.id)).where(Product.activo == True)
         if busqueda:
-            count_stmt = count_stmt.where(
-                func.match(Product.nombre, Product.descripcion).against(
-                    terminos_booleanos
-                ).op('IN BOOLEAN MODE')
+            match_clause_count = func.match(Product.nombre, Product.descripcion).op("AGAINST")(
+                text(f"('{terminos_booleanos}' IN BOOLEAN MODE)")
             )
+            count_stmt = count_stmt.where(match_clause_count)
         if categoria_id:
             count_stmt = count_stmt.where(Product.category_id.in_(all_category_ids))
         if solo_con_stock:
