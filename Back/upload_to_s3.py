@@ -51,12 +51,15 @@ def upload_and_sync():
                 # Subir a S3
                 # Usar settings.CLOUDFRONT_DOMAIN si existe, sino URL de S3 directa
                 try:
+                    import urllib.parse
+                    safe_filename = urllib.parse.quote(filename)
+                    
                     # En el s3_service.py ya concatena con CLOUDFRONT_DOMAIN
                     # Si CLOUDFRONT_DOMAIN esta vacio, fallaria la URL final del service
                     # Vamos a asegurarnos de que la URL sea valida
                     if not settings.CLOUDFRONT_DOMAIN:
                         # URL directa de S3 como fallback
-                        s3_url = f"https://{settings.S3_BUCKET_NAME}.s3.{settings.AWS_REGION}.amazonaws.com/products/{filename}"
+                        s3_url = f"https://{settings.S3_BUCKET_NAME}.s3.{settings.AWS_REGION}.amazonaws.com/products/{safe_filename}"
                         # Sobreescribir el put_object manual para usar el prefijo products/
                         s3.client.put_object(
                             Bucket=settings.S3_BUCKET_NAME,
@@ -68,6 +71,9 @@ def upload_and_sync():
                     else:
                         # Si hay cloudfront, el service lo hace
                         url = s3.subir_imagen(file_data, f"products/{filename}")
+                        # Asegurar que la URL de salida tambien este encodeada si viene de un service que no lo hace
+                        if settings.CLOUDFRONT_DOMAIN in url and filename in url:
+                             url = url.replace(filename, safe_filename)
                         p.imagen_url = url
                     
                     print(f"[OK] {p.nombre} -> {p.imagen_url}")
