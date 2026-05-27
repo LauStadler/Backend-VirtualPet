@@ -50,6 +50,11 @@ class OrderItem(Base):
     order = relationship("Order", back_populates="items")
     product = relationship("Product")
 
+    @property
+    def producto_imagen_url(self) -> str:
+        """Retorna la URL de la imagen del producto asociado."""
+        return self.product.imagen_url if self.product else None
+
     def __repr__(self) -> str:
         return (
             f"<OrderItem id={self.id} order_id={self.order_id} "

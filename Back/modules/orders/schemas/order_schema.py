@@ -20,6 +20,7 @@ class OrderItemResponse(BaseModel):
     precio_unitario: float
     subtotal: float
     producto_nombre: Optional[str] = None
+    producto_imagen_url: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
