@@ -119,3 +119,66 @@ def test_non_admin_cannot_create_user(client, db_session):
     response = client.post("/auth/users", json=payload, headers=headers)
     
     assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+def test_update_profile_success(client):
+    # Registrar y obtener token
+    payload_reg = {
+        "nombre": "Original",
+        "apellido": "Name",
+        "email": "update_me@email.com",
+        "password": "password123"
+    }
+    reg_response = client.post("/auth/register", json=payload_reg)
+    token = reg_response.json()["access_token"]
+    
+    # Update profile
+    headers = {"Authorization": f"Bearer {token}"}
+    payload_update = {"nombre": "Nuevo", "apellido": "Apellido"}
+    response = client.patch("/auth/me", json=payload_update, headers=headers)
+    
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["nombre"] == "Nuevo"
+    assert data["apellido"] == "Apellido"
+
+
+def test_change_password_success(client):
+    # Registrar
+    payload_reg = {
+        "nombre": "User",
+        "apellido": "Test",
+        "email": "change_pass@email.com",
+        "password": "password123"
+    }
+    client.post("/auth/register", json=payload_reg)
+    
+    # Login para obtener token
+    login_res = client.post("/auth/login", json={
+        "email": "change_pass@email.com",
+        "password": "password123"
+    })
+    token = login_res.json()["access_token"]
+    
+    # Change password
+    headers = {"Authorization": f"Bearer {token}"}
+    payload_pass = {
+        "current_password": "password123",
+        "new_password": "newpassword123"
+    }
+    response = client.patch("/auth/me/password", json=payload_pass, headers=headers)
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+    
+    # Intentar login con password viejo
+    login_old = client.post("/auth/login", json={
+        "email": "change_pass@email.com",
+        "password": "password123"
+    })
+    assert login_old.status_code == status.HTTP_401_UNAUTHORIZED
+    
+    # Intentar login con password nuevo
+    login_new = client.post("/auth/login", json={
+        "email": "change_pass@email.com",
+        "password": "newpassword123"
+    })
+    assert login_new.status_code == status.HTTP_200_OK
