@@ -30,6 +30,8 @@ from modules.auth.schemas.user_schema import (
     TokenResponse,
     UserResponse,
     CreateUserAdminRequest,
+    UpdateProfileRequest,
+    ChangePasswordRequest,
 )
 from modules.auth.models.user import User, UserRole
 
@@ -112,6 +114,43 @@ def get_profile(current_user: User = Depends(get_current_user)) -> UserResponse:
     Acceso: cualquier usuario autenticado (cliente, depósito, admin).
     """
     return UserResponse.model_validate(current_user)
+
+
+@router.patch(
+    "/me",
+    response_model=UserResponse,
+    summary="Actualizar perfil propio",
+    description="Permite al usuario cambiar su nombre y apellido.",
+)
+def update_profile(
+    body: UpdateProfileRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> UserResponse:
+    service = AuthService(db)
+    user = service.actualizar_perfil(current_user.id, body)
+    return UserResponse.model_validate(user)
+
+
+@router.patch(
+    "/me/password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Cambiar contraseña",
+    description="Permite al usuario cambiar su contraseña validando la anterior.",
+)
+def change_password(
+    body: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    service = AuthService(db)
+    try:
+        service.cambiar_contrasena(current_user.id, body)
+    except CredencialesInvalidasError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e)
+        )
 
 
 @router.post(

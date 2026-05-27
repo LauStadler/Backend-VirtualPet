@@ -16,7 +16,13 @@ from typing import Optional
 
 from modules.auth.repositories.user_repository import UserRepository
 from modules.auth.models.user import User, UserRole
-from modules.auth.schemas.user_schema import RegisterRequest, LoginRequest, CreateUserAdminRequest
+from modules.auth.schemas.user_schema import (
+    RegisterRequest, 
+    LoginRequest, 
+    CreateUserAdminRequest,
+    UpdateProfileRequest,
+    ChangePasswordRequest
+)
 from shared.utils.security import hash_password, verify_password, create_access_token
 from shared.config.settings import settings
 
@@ -66,6 +72,14 @@ class IAuthService(ABC):
 
     @abstractmethod
     def obtener_perfil(self, user_id: int) -> User:
+        pass
+
+    @abstractmethod
+    def actualizar_perfil(self, user_id: int, datos: UpdateProfileRequest) -> User:
+        pass
+
+    @abstractmethod
+    def cambiar_contrasena(self, user_id: int, datos: ChangePasswordRequest) -> None:
         pass
 
 
@@ -195,3 +209,34 @@ class AuthService(IAuthService):
             El objeto User con todos sus datos.
         """
         return self.repo.get_by_id(user_id)
+
+    def actualizar_perfil(self, user_id: int, datos: UpdateProfileRequest) -> User:
+        """
+        Actualiza los datos básicos del perfil.
+        """
+        user = self.repo.get_by_id(user_id)
+        if not user:
+            raise UsuarioNoEncontradoError("Usuario no encontrado")
+
+        if datos.nombre:
+            user.nombre = datos.nombre
+        if datos.apellido:
+            user.apellido = datos.apellido
+
+        self.repo.db.commit()
+        self.repo.db.refresh(user)
+        return user
+
+    def cambiar_contrasena(self, user_id: int, datos: ChangePasswordRequest) -> None:
+        """
+        Cambia la contraseña del usuario tras verificar la actual.
+        """
+        user = self.repo.get_by_id(user_id)
+        if not user:
+            raise UsuarioNoEncontradoError("Usuario no encontrado")
+
+        if not verify_password(datos.current_password, user.password_hash):
+            raise CredencialesInvalidasError("La contraseña actual es incorrecta")
+
+        user.password_hash = hash_password(datos.new_password)
+        self.repo.db.commit()

@@ -13,6 +13,7 @@ Convención de nombres:
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from datetime import datetime
+from typing import Optional
 from modules.auth.models.user import UserRole
 
 
@@ -80,6 +81,25 @@ class CreateUserAdminRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=64)
     role: UserRole = Field(..., description="Rol a asignar al nuevo usuario")
+
+
+class UpdateProfileRequest(BaseModel):
+    """Datos permitidos para que un usuario actualice su propio perfil."""
+    nombre: Optional[str] = Field(None, min_length=2, max_length=100)
+    apellido: Optional[str] = Field(None, min_length=2, max_length=100)
+
+
+class ChangePasswordRequest(BaseModel):
+    """Datos para cambiar la contraseña."""
+    current_password: str
+    new_password: str = Field(..., min_length=8, max_length=64)
+
+    @field_validator("new_password")
+    @classmethod
+    def password_must_have_number(cls, v: str) -> str:
+        if not any(char.isdigit() for char in v):
+            raise ValueError("La nueva contraseña debe contener al menos un número")
+        return v
 
 
 # Necesario para que TokenResponse pueda referenciar UserResponse
