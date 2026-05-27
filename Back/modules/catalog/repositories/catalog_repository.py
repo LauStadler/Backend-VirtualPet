@@ -70,15 +70,19 @@ class CatalogRepository:
         # Base de la query
         stmt = select(Product).where(Product.activo == True)
 
-        # Filtro de búsqueda por texto (Optimizable con Full-Text Index en MySQL)
+        # Filtro de búsqueda por texto (Optimizado con Full-Text Index en MySQL y modo booleano para prefijos)
         if busqueda:
-            termino = f"%{busqueda}%"
-            stmt = stmt.where(
-                or_(
-                    Product.nombre.ilike(termino),
-                    Product.descripcion.ilike(termino),
-                )
-            )
+            # Transformamos la búsqueda para que cada palabra sea obligatoria (+) y permita prefijos (*)
+            # Ej: "alimen perr" -> "+alimen* +perr*"
+            terminos_booleanos = " ".join([f"+{word}*" for word in busqueda.split() if len(word) > 0])
+            
+            # Usamos match().against() con 'IN BOOLEAN MODE'
+            # Nota: .op() permite añadir el modificador necesario para MySQL
+            match_clause = func.match(Product.nombre, Product.descripcion).against(
+                terminos_booleanos
+            ).op('IN BOOLEAN MODE')
+            
+            stmt = stmt.where(match_clause)
 
         # Filtro por categoría con expansión de hijos
         if categoria_id:
@@ -98,7 +102,11 @@ class CatalogRepository:
         # 1. Conteo total (Query independiente para evitar colisiones de joins/aliases)
         count_stmt = select(func.count(Product.id)).where(Product.activo == True)
         if busqueda:
-            count_stmt = count_stmt.where(or_(Product.nombre.ilike(f"%{busqueda}%"), Product.descripcion.ilike(f"%{busqueda}%")))
+            count_stmt = count_stmt.where(
+                func.match(Product.nombre, Product.descripcion).against(
+                    terminos_booleanos
+                ).op('IN BOOLEAN MODE')
+            )
         if categoria_id:
             count_stmt = count_stmt.where(Product.category_id.in_(all_category_ids))
         if solo_con_stock:
