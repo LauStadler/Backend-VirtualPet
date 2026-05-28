@@ -50,7 +50,7 @@ TRANSICIONES_VALIDAS: dict[OrderEstado, list[OrderEstado]] = {
     OrderEstado.EN_PREPARACION: [OrderEstado.PENDIENTE, OrderEstado.PREPARADO],
     OrderEstado.PREPARADO: [OrderEstado.DESPACHADO, OrderEstado.EN_PREPARACION],
     OrderEstado.DESPACHADO:   [OrderEstado.PREPARADO, OrderEstado.ENTREGADO, OrderEstado.EN_TRANSITO],
-    OrderEstado.EN_TRANSITO: [OrderEstado.ENTREGADO],
+    OrderEstado.EN_TRANSITO: [OrderEstado.ENTREGADO, OrderEstado.PREPARADO],
     OrderEstado.ENTREGADO: [OrderEstado.DESPACHADO],
 }
 """
