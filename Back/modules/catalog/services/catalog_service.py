@@ -191,3 +191,14 @@ class CatalogService(ICatalogService):
             )
 
         self.repo.descontar_stock(product_id, cantidad)
+
+    def sumar_stock(self, product_id: int, cantidad: int) -> None:
+        """
+        Suma unidades al stock disponible.
+        Llamado al cancelar una orden.
+
+        Args:
+            product_id: ID del producto a devolver.
+            cantidad: Unidades a sumar.
+        """
+        self.repo.sumar_stock(product_id, cantidad)

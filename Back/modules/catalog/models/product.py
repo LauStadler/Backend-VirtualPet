@@ -9,6 +9,7 @@ sin eliminarlos, preservando el historial de órdenes asociadas.
 """
 
 from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, Text, DateTime
+import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from infrastructure.db.base_class import Base
@@ -45,8 +46,8 @@ class Product(Base):
     Null si el ERP aún no cargó imagen para este producto.
     """
 
-    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
-    """Categoría a la que pertenece el producto. Puede ser null si el ERP no la asignó."""
+    category_id = Column(Integer, sa.ForeignKey("categories.id"), nullable=True, index=True)
+    """FK a la categoría (Mismo módulo)."""
 
     activo = Column(Boolean, default=True, nullable=False)
     """
@@ -63,7 +64,7 @@ class Product(Base):
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 
-    # Relaciones
+    # Relaciones internas (Mismo módulo)
     category = relationship("Category", back_populates="products")
     stock = relationship("Stock", back_populates="product", uselist=False)
 

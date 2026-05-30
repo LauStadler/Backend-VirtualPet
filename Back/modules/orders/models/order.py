@@ -20,38 +20,22 @@ import enum
 class OrderEstado(str, enum.Enum):
     """
     Estados del ciclo de vida de una orden.
-
-    El flujo es unidireccional — los estados solo avanzan, nunca retroceden.
-    El backoffice es responsable de avanzar los estados manualmente.
-
-    Flujo esperado:
-        PENDIENTE -> PREPARADO -> EN_PREPARACION -> DESPACHADO -> EN TRANSITO -> ENTREGADO
     """
     PENDIENTE = "pendiente"
-    """Orden recién creada, aún no procesada por el depósito."""
-
     PREPARADO = "preparado"
-    """El depósito está armando el paquete."""
-
     EN_PREPARACION = "en_preparacion"
-
     DESPACHADO = "despachado"
-    """El paquete salió del depósito, lo tiene el courier."""
-    """El cliente lo vera como 'en manos del transportista'. """
-    
-    EN_TRANSITO = "en_transito"
-    """el envio ya se encuentra en camino al domicilio. """
-    
     ENTREGADO = "entregado"
+    CANCELADO = "cancelado"
 
 # Define el orden válido de transiciones de estado.
 TRANSICIONES_VALIDAS: dict[OrderEstado, list[OrderEstado]] = {
-    OrderEstado.PENDIENTE: [OrderEstado.EN_PREPARACION],
-    OrderEstado.EN_PREPARACION: [OrderEstado.PENDIENTE, OrderEstado.PREPARADO],
-    OrderEstado.PREPARADO: [OrderEstado.DESPACHADO, OrderEstado.EN_PREPARACION],
-    OrderEstado.DESPACHADO:   [OrderEstado.PREPARADO, OrderEstado.ENTREGADO, OrderEstado.EN_TRANSITO],
-    OrderEstado.EN_TRANSITO: [OrderEstado.ENTREGADO, OrderEstado.PREPARADO],
+    OrderEstado.PENDIENTE: [OrderEstado.EN_PREPARACION, OrderEstado.CANCELADO],
+    OrderEstado.EN_PREPARACION: [OrderEstado.PENDIENTE, OrderEstado.PREPARADO, OrderEstado.CANCELADO],
+    OrderEstado.PREPARADO: [OrderEstado.DESPACHADO, OrderEstado.EN_PREPARACION, OrderEstado.CANCELADO],
+    OrderEstado.DESPACHADO: [OrderEstado.PREPARADO, OrderEstado.ENTREGADO, OrderEstado.CANCELADO],
     OrderEstado.ENTREGADO: [OrderEstado.DESPACHADO],
+    OrderEstado.CANCELADO: [], # Estado final
 }
 """
 Mapa de transiciones válidas de estado.
@@ -71,8 +55,8 @@ class Order(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
 
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    """FK al usuario que realizó la compra."""
+    user_id = Column(Integer, nullable=False, index=True)
+    """ID del usuario que realizó la compra (Referencia lógica)."""
 
     estado = Column(
         String(20),
@@ -96,9 +80,7 @@ class Order(Base):
     )
 
     # Relaciones
-    user = relationship("User")
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
-    payment = relationship("Payment", back_populates="orden", uselist=False)
 
     def __repr__(self) -> str:
         return f"<Order id={self.id} user_id={self.user_id} estado={self.estado} total={self.total}>"

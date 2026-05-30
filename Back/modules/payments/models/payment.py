@@ -44,12 +44,11 @@ class Payment(Base):
 
     orden_id = Column(
         Integer,
-        ForeignKey("orders.id"),
         nullable=False,
         unique=True,
     )
     """
-    FK a la orden asociada. Unique porque una orden tiene exactamente un pago.
+    ID de la orden asociada (Referencia lógica). Unique porque una orden tiene exactamente un pago.
     """
 
     monto = Column(Float, nullable=False)
@@ -80,9 +79,6 @@ class Payment(Base):
     """
 
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
-
-    # Relaciones
-    orden = relationship("Order", back_populates="payment")
 
     def __repr__(self) -> str:
         return f"<Payment id={self.id} orden_id={self.orden_id} estado={self.estado} monto={self.monto}>"

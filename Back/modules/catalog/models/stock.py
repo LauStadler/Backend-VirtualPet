@@ -11,6 +11,7 @@ con las últimas unidades disponibles.
 """
 
 from sqlalchemy import Column, Integer, ForeignKey, DateTime
+import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from infrastructure.db.base_class import Base
@@ -31,11 +32,11 @@ class Stock(Base):
 
     product_id = Column(
         Integer,
-        ForeignKey("products.id"),
+        sa.ForeignKey("products.id"),
         unique=True,
         nullable=False
     )
-    """FK al producto. La constraint unique garantiza una sola fila de stock por producto."""
+    """FK al producto (Mismo módulo)."""
 
     cantidad = Column(Integer, nullable=False, default=0)
     """
@@ -55,7 +56,7 @@ class Stock(Base):
     Útil para auditar cuándo el ERP repuso mercadería o cuándo se realizó una venta.
     """
 
-    # Relaciones
+    # Relaciones internas (Mismo módulo)
     product = relationship("Product", back_populates="stock")
 
     def __repr__(self) -> str:

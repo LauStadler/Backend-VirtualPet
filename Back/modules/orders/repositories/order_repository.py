@@ -134,7 +134,7 @@ class OrderRepository:
         """
         stmt = (
             select(Order)
-            .options(joinedload(Order.items), joinedload(Order.user))
+            .options(joinedload(Order.items))
             .order_by(Order.created_at.desc())
         )
         return list(self.db.scalars(stmt).unique())

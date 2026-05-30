@@ -216,3 +216,25 @@ class CatalogRepository:
         stock.cantidad -= cantidad
         self.db.flush()
         return stock
+
+    def sumar_stock(self, product_id: int, cantidad: int) -> Stock:
+        """
+        Suma unidades al stock disponible.
+        Útil para cancelaciones de órdenes.
+
+        Args:
+            product_id: ID del producto a devolver.
+            cantidad: Unidades a sumar.
+
+        Returns:
+            El objeto Stock actualizado.
+        """
+        stock = self.get_stock_for_update(product_id)
+        if stock is None:
+            raise ValueError(
+                f"No existe registro de stock para el producto {product_id}."
+            )
+
+        stock.cantidad += cantidad
+        self.db.flush()
+        return stock

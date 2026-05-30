@@ -9,6 +9,7 @@ Ejemplos de categorías: Alimentos, Juguetes, Accesorios, Higiene, Cuchas.
 """
 
 from sqlalchemy import Column, Integer, String, ForeignKey
+import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from infrastructure.db.base_class import Base
 
@@ -32,13 +33,13 @@ class Category(Base):
     descripcion = Column(String(255), nullable=True)
     """Descripción opcional de la categoría."""
 
-    parent_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    parent_id = Column(Integer, sa.ForeignKey("categories.id"), nullable=True, index=True)
     """
-    ID de la categoría padre. Null si es categoría raíz.
+    ID de la categoría padre (FK interna). Null si es categoría raíz.
     Permite una jerarquía simple de dos niveles (padre → hijo).
     """
 
-    # Relaciones
+    # Relaciones internas (Mismo módulo)
     parent = relationship("Category", remote_side=[id], back_populates="children")
     children = relationship("Category", back_populates="parent")
     products = relationship("Product", back_populates="category")

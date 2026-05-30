@@ -40,6 +40,22 @@ class UserRepository:
         """
         return self.db.get(User, user_id)
 
+    def get_by_ids(self, user_ids: list[int]) -> list[User]:
+        """
+        Busca múltiples usuarios por una lista de IDs.
+        Útil para la hidratación manual de órdenes.
+
+        Args:
+            user_ids: Lista de IDs de usuarios.
+
+        Returns:
+            Lista de objetos User encontrados.
+        """
+        if not user_ids:
+            return []
+        stmt = select(User).where(User.id.in_(user_ids))
+        return list(self.db.scalars(stmt).all())
+
     def get_by_email(self, email: str) -> Optional[User]:
         """
         Busca un usuario por email. Usado en login y para verificar

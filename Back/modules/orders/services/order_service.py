@@ -130,6 +130,12 @@ class OrderService(IOrderService):
                 total_real += item.subtotal
 
             # 2. Crear la orden y sus items con los datos ya validados
+            # Inyectamos el producto_imagen_url para que quede persistido en la orden
+            for item in items:
+                product = self.db.query(Product).filter(Product.id == item.product_id).first()
+                if product:
+                    item.producto_imagen_url = product.imagen_url
+
             order = self.repo.crear(
                 user_id=user_id,
                 items=items,
@@ -198,17 +204,40 @@ class OrderService(IOrderService):
         Returns:
             Lista de todas las órdenes con datos del cliente, la más reciente primero.
         """
+        from modules.auth.repositories.user_repository import UserRepository
+        user_repo = UserRepository(self.db)
+        
         orders = self.repo.list_all()
-        return [BackofficeOrderResponse.model_validate(o) for o in orders]
+        
+        # Hidratación manual de usuarios (Búsqueda por lote)
+        user_ids = list(set(o.user_id for o in orders))
+        users = user_repo.get_by_ids(user_ids)
+        user_map = {u.id: u for u in users}
+
+        responses = []
+        for o in orders:
+            resp = BackofficeOrderResponse.model_validate(o)
+            # Asignamos el usuario si existe, manejando resiliencia si no se encuentra
+            resp.user = user_map.get(o.user_id)
+            responses.append(resp)
+            
+        return responses
 
     def obtener_una_backoffice(self, order_id: int) -> BackofficeOrderResponse:
         """
         Retorna el detalle de una orden con el formato extendido para backoffice.
         """
+        from modules.auth.repositories.user_repository import UserRepository
+        user_repo = UserRepository(self.db)
+
         order = self.repo.get_by_id(order_id)
         if order is None:
             raise OrdenNoEncontradaError(f"La orden {order_id} no existe.")
-        return BackofficeOrderResponse.model_validate(order)
+        
+        resp = BackofficeOrderResponse.model_validate(order)
+        resp.user = user_repo.get_by_id(order.user_id)
+        
+        return resp
 
     def cambiar_estado(self, order_id: int, nuevo_estado: OrderEstado) -> BackofficeOrderResponse:
         """
@@ -241,7 +270,22 @@ class OrderService(IOrderService):
             print(f"DEBUG: Transition conflict for order {order_id}. Actual: {estado_actual}, Requested: {nuevo_estado}, Valid: {transiciones_permitidas}")
             raise TransicionEstadoInvalidaError(estado_actual, nuevo_estado)
 
+        if nuevo_estado == OrderEstado.CANCELADO:
+            # Si se cancela, devolvemos el stock al catálogo
+            catalog_service = CatalogService(self.db)
+            for item in order.items:
+                # El método sumar_stock debería existir o ser creado para devolver stock
+                catalog_service.sumar_stock(item.product_id, item.cantidad)
+
         order = self.repo.actualizar_estado(order, nuevo_estado)
         self.db.commit()
         self.db.refresh(order)
-        return BackofficeOrderResponse.model_validate(order)
+        
+        # Hidratación manual del usuario para la respuesta del backoffice
+        from modules.auth.repositories.user_repository import UserRepository
+        user_repo = UserRepository(self.db)
+        
+        resp = BackofficeOrderResponse.model_validate(order)
+        resp.user = user_repo.get_by_id(order.user_id)
+        
+        return resp

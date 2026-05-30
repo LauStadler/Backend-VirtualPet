@@ -66,6 +66,7 @@ class CheckoutItemDetail(BaseModel):
 
     product_id: int
     producto_nombre: str
+    producto_imagen_url: Optional[str] = None
     cantidad: int
     precio_unitario: float
     subtotal: float
