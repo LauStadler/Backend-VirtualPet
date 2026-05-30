@@ -25,25 +25,35 @@ También puedes acceder a la documentación interactiva (Swagger) en:
 - **Validación:** Pydantic v2
 - **Gestor de paquetes:** `uv`
 
+## Arquitectura de Base de Datos
+El sistema utiliza un enfoque de **Desacoplamiento Referencial** (Preparado para Microservicios):
+- **Relaciones Inter-Módulo:** (Ej: Orders -> Users, Items -> Products) Se manejan mediante **identificadores lógicos** sin Foreign Keys físicas. La integridad se garantiza en la capa de servicios (Hidratación manual).
+- **Relaciones Intra-Módulo:** (Ej: Order -> OrderItem, Product -> Category) Mantienen **Foreign Keys físicas** para integridad referencial local.
+- **Snapshots:** Los `order_items` guardan una copia (nombre, precio, imagen) del producto al momento de la venta para garantizar la inmutabilidad del historial.
+
 ## Configuración Local
-
-1. Instalar dependencias:
-   ```bash
-   uv sync
-   ```
-
-2. Configurar variables de entorno:
-   Copiar `.env.example` a `.env` y completar los valores.
-
-3. Correr migraciones:
-   ```bash
-   alembic upgrade head
-   ```
-
-4. Ejecutar servidor:
+...
    ```bash
    uv run uvicorn main:app --reload
    ```
+
+## Mantenimiento y Conexión a Producción
+
+### Acceso a Base de Datos (MySQL Workbench)
+Para gestionar la base de datos de AWS de forma segura:
+1. Crear nueva conexión en Workbench.
+2. **Method:** `Standard TCP/IP over SSH`.
+3. **SSH Hostname:** `3.133.84.16:22` (User: `ubuntu`).
+4. **SSH Key:** Seleccionar tu archivo `.pem`.
+5. **MySQL Hostname:** `127.0.0.1` (Port: `3306`).
+6. **User:** `root` / **Password:** `VirtualPetRoot`.
+
+### Aplicar Cambios en AWS
+Cada vez que se suban nuevas migraciones de Alembic:
+```bash
+# Entrar al servidor y ejecutar dentro de la carpeta Back:
+docker compose exec backend alembic upgrade head
+```
 
 ## Estructura del Proyecto
 - `modules/`: Lógica de negocio dividida en dominios (auth, catalog, orders, sales).
