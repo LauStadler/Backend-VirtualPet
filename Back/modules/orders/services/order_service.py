@@ -24,7 +24,6 @@ Regla crítica de negocio — atomicidad del checkout:
 from abc import ABC, abstractmethod
 from sqlalchemy.orm import Session
 
-from modules.catalog.models.product import Product
 from modules.orders.repositories.order_repository import OrderRepository
 from modules.orders.models.order import Order, OrderEstado, TRANSICIONES_VALIDAS
 from modules.orders.schemas.order_schema import (
@@ -33,7 +32,7 @@ from modules.orders.schemas.order_schema import (
     BackofficeOrderResponse,
 )
 from modules.sales.schemas.sales_schema import CheckoutItemDetail
-from modules.catalog.services.catalog_service import CatalogService, StockInsuficienteError
+from modules.catalog.services.catalog_service import CatalogService, StockInsuficienteError, ProductoNoEncontradoError
 
 
 class OrdenNoEncontradaError(Exception):
@@ -117,25 +116,24 @@ class OrderService(IOrderService):
         Si cualquier paso falla, se realiza un rollback() para mantener la integridad.
         """
         try:
-            # 1. Validar productos y RECALCULAR precios desde la DB para evitar inyecciones
+            catalog_service = CatalogService(self.db)
+            
+            # 1. Validar productos y RECALCULAR precios desde el CatalogService
+            # para evitar inyecciones y respetar la aislación modular.
             total_real = 0.0
             for item in items:
-                product = self.db.query(Product).filter(Product.id == item.product_id).first()
-                if not product:
+                try:
+                    product = catalog_service.obtener_producto(item.product_id)
+                except ProductoNoEncontradoError:
                     raise Exception(f"Producto {item.product_id} no encontrado")
                 
-                # Forzamos los valores reales de la DB
+                # Forzamos los valores reales que nos entrega el servicio de catálogo
                 item.precio_unitario = float(product.precio)
+                item.producto_imagen_url = product.imagen_url
                 item.subtotal = float(product.precio * item.cantidad)
                 total_real += item.subtotal
 
             # 2. Crear la orden y sus items con los datos ya validados
-            # Inyectamos el producto_imagen_url para que quede persistido en la orden
-            for item in items:
-                product = self.db.query(Product).filter(Product.id == item.product_id).first()
-                if product:
-                    item.producto_imagen_url = product.imagen_url
-
             order = self.repo.crear(
                 user_id=user_id,
                 items=items,
@@ -144,7 +142,6 @@ class OrderService(IOrderService):
             )
 
             # 3. Descontar stock de cada item con bloqueo pesimista
-            catalog_service = CatalogService(self.db)
             for item in items:
                 # El método descontar_stock ahora usa with_for_update() internamente
                 catalog_service.descontar_stock(item.product_id, item.cantidad)
