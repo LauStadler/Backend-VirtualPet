@@ -22,6 +22,7 @@ class UserRole(str, enum.Enum):
     """
     CLIENTE = "cliente"
     DEPOSITO = "deposito"
+    DELIVERY = "delivery"
     ADMIN = "admin"
 
 
@@ -47,7 +48,7 @@ class User(Base):
     """Contraseña hasheada con bcrypt. Nunca almacenar texto plano."""
 
     role = Column(
-        Enum(UserRole),
+        Enum(UserRole, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         default=UserRole.CLIENTE
     )

@@ -90,6 +90,26 @@ class IOrderService(ABC):
     def cambiar_estado(self, order_id: int, nuevo_estado: OrderEstado) -> BackofficeOrderResponse:
         pass
 
+    @abstractmethod
+    def listar_disponibles_delivery(self) -> list[OrderResponse]:
+        pass
+
+    @abstractmethod
+    def listar_mis_entregas(self, rider_id: int) -> list[OrderResponse]:
+        pass
+
+    @abstractmethod
+    def reclamar_pedido(self, order_id: int, rider_id: int) -> OrderResponse:
+        pass
+
+    @abstractmethod
+    def completar_entrega(self, order_id: int, rider_id: int) -> OrderResponse:
+        pass
+
+    @abstractmethod
+    def devolver_pedido(self, order_id: int, rider_id: int) -> OrderResponse:
+        pass
+
 
 class OrderService(IOrderService):
     """Lógica de negocio para creación y gestión del ciclo de vida de órdenes."""
@@ -278,11 +298,78 @@ class OrderService(IOrderService):
         self.db.commit()
         self.db.refresh(order)
         
-        # Hidratación manual del usuario para la respuesta del backoffice
-        from modules.auth.repositories.user_repository import UserRepository
-        user_repo = UserRepository(self.db)
-        
         resp = BackofficeOrderResponse.model_validate(order)
         resp.user = user_repo.get_by_id(order.user_id)
         
         return resp
+
+    def listar_disponibles_delivery(self) -> list[OrderResponse]:
+        """
+        Retorna los pedidos listos para ser retirados.
+        """
+        orders = self.repo.list_available_for_delivery()
+        return [OrderResponse.model_validate(o) for o in orders]
+
+    def listar_mis_entregas(self, rider_id: int) -> list[OrderResponse]:
+        """
+        Retorna los pedidos que el repartidor tiene actualmente en curso.
+        """
+        orders = self.repo.list_by_rider(rider_id)
+        return [OrderResponse.model_validate(o) for o in orders]
+
+    def reclamar_pedido(self, order_id: int, rider_id: int) -> OrderResponse:
+        """
+        Asigna un repartidor a un pedido y cambia su estado a DESPACHADO.
+        """
+        order = self.repo.get_by_id(order_id)
+        if not order:
+            raise OrdenNoEncontradaError(f"Pedido {order_id} no encontrado")
+        
+        if order.estado != OrderEstado.PREPARADO:
+            raise TransicionEstadoInvalidaError(OrderEstado(order.estado), OrderEstado.DESPACHADO)
+        
+        if order.rider_id is not None:
+            raise Exception("Este pedido ya ha sido tomado por otro repartidor")
+
+        self.repo.asignar_rider(order, rider_id)
+        self.repo.actualizar_estado(order, OrderEstado.DESPACHADO)
+        self.db.commit()
+        self.db.refresh(order)
+        return OrderResponse.model_validate(order)
+
+    def completar_entrega(self, order_id: int, rider_id: int) -> OrderResponse:
+        """
+        Marca un pedido como entregado.
+        """
+        order = self.repo.get_by_id(order_id)
+        if not order:
+            raise OrdenNoEncontradaError(f"Pedido {order_id} no encontrado")
+        
+        if order.rider_id != rider_id:
+            raise Exception("No puedes completar un pedido que no tienes asignado")
+        
+        if order.estado != OrderEstado.DESPACHADO:
+            raise TransicionEstadoInvalidaError(OrderEstado(order.estado), OrderEstado.ENTREGADO)
+
+        self.repo.actualizar_estado(order, OrderEstado.ENTREGADO)
+        self.db.commit()
+        self.db.refresh(order)
+        return OrderResponse.model_validate(order)
+
+    def devolver_pedido(self, order_id: int, rider_id: int) -> OrderResponse:
+        """
+        Devuelve un pedido al depósito, dejándolo disponible para otro repartidor.
+        """
+        order = self.repo.get_by_id(order_id)
+        if not order:
+            raise OrdenNoEncontradaError(f"Pedido {order_id} no encontrado")
+        
+        if order.rider_id != rider_id:
+            raise Exception("No puedes devolver un pedido que no tienes asignado")
+
+        # Al devolver, el pedido vuelve a estar disponible para ser tomado
+        self.repo.asignar_rider(order, None)
+        self.repo.actualizar_estado(order, OrderEstado.PREPARADO)
+        self.db.commit()
+        self.db.refresh(order)
+        return OrderResponse.model_validate(order)

@@ -153,3 +153,33 @@ class OrderRepository:
         order.estado = nuevo_estado
         self.db.flush()
         return order
+
+    def list_available_for_delivery(self) -> list[Order]:
+        """
+        Lista órdenes listas para ser retiradas (PREPARADO) y sin rider asignado.
+        """
+        stmt = (
+            select(Order)
+            .where(Order.estado == OrderEstado.PREPARADO, Order.rider_id == None)
+            .order_by(Order.created_at.asc())
+        )
+        return list(self.db.scalars(stmt))
+
+    def list_by_rider(self, rider_id: int) -> list[Order]:
+        """
+        Lista órdenes actualmente asignadas a un rider (DESPACHADO).
+        """
+        stmt = (
+            select(Order)
+            .where(Order.rider_id == rider_id, Order.estado == OrderEstado.DESPACHADO)
+            .order_by(Order.updated_at.desc())
+        )
+        return list(self.db.scalars(stmt))
+
+    def asignar_rider(self, order: Order, rider_id: Optional[int]) -> Order:
+        """
+        Asigna o desvincula un repartidor de la orden.
+        """
+        order.rider_id = rider_id
+        self.db.flush()
+        return order
