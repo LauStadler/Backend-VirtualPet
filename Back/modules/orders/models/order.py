@@ -71,6 +71,12 @@ class Order(Base):
     direccion_entrega = Column(String(300), nullable=False)
     """Dirección de entrega ingresada por el cliente al hacer checkout."""
 
+    billing_cuit = Column(String(11), nullable=True)
+    """CUIT para facturación, solicitado via chatbot."""
+
+    billing_requested_at = Column(DateTime, nullable=True)
+    """Fecha en la que se solicitó la facturación."""
+
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(
         DateTime,

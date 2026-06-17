@@ -14,6 +14,7 @@ from modules.catalog.controllers.product_controller import router as catalog_rou
 from modules.sales.controllers.cart_controller import router as sales_router
 from modules.orders.controllers.order_controller import router as orders_router
 from backoffice.controllers.backoffice_controller import router as backoffice_router
+from modules.chatbot.controllers.chatbot_controller import router as chatbot_router
 
 app = FastAPI(
     title="Virtual Pet API",
@@ -36,6 +37,7 @@ app.include_router(catalog_router,    prefix="/catalog",    tags=["Catálogo"])
 app.include_router(sales_router,      prefix="/cart",       tags=["Ventas"])
 app.include_router(orders_router,     prefix="/orders",     tags=["Pedidos"])
 app.include_router(backoffice_router, prefix="/backoffice", tags=["Backoffice"])
+app.include_router(chatbot_router,    prefix="/chatbot",    tags=["Chatbot"])
 
 @app.get("/health")
 def health_check():
