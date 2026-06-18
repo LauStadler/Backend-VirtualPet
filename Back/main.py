@@ -13,6 +13,7 @@ from modules.auth.controllers.auth_controller import router as auth_router
 from modules.catalog.controllers.product_controller import router as catalog_router
 from modules.sales.controllers.cart_controller import router as sales_router
 from modules.orders.controllers.order_controller import router as orders_router
+from modules.orders.controllers.delivery_controller import router as delivery_router
 from backoffice.controllers.backoffice_controller import router as backoffice_router
 from modules.chatbot.controllers.chatbot_controller import router as chatbot_router
 
@@ -24,7 +25,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,6 +37,7 @@ app.include_router(auth_router,       prefix="/auth",       tags=["Auth"])
 app.include_router(catalog_router,    prefix="/catalog",    tags=["Catálogo"])
 app.include_router(sales_router,      prefix="/cart",       tags=["Ventas"])
 app.include_router(orders_router,     prefix="/orders",     tags=["Pedidos"])
+app.include_router(delivery_router,   prefix="/delivery",   tags=["Delivery"])
 app.include_router(backoffice_router, prefix="/backoffice", tags=["Backoffice"])
 app.include_router(chatbot_router,    prefix="/chatbot",    tags=["Chatbot"])
 

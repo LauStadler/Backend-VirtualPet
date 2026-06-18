@@ -280,6 +280,15 @@ class OrderService(IOrderService):
             raise OrdenNoEncontradaError(f"La orden {order_id} no existe.")
 
         estado_actual = OrderEstado(order.estado)
+        
+        # Si ya está en el estado solicitado, es un no-op tolerante para el front
+        if estado_actual == nuevo_estado:
+            from modules.auth.repositories.user_repository import UserRepository
+            user_repo = UserRepository(self.db)
+            resp = BackofficeOrderResponse.model_validate(order)
+            resp.user = user_repo.get_by_id(order.user_id)
+            return resp
+
         transiciones_permitidas = TRANSICIONES_VALIDAS.get(estado_actual, [])
 
         # Verificar que la transición solicitada está permitida para el estado actual
@@ -298,6 +307,8 @@ class OrderService(IOrderService):
         self.db.commit()
         self.db.refresh(order)
         
+        from modules.auth.repositories.user_repository import UserRepository
+        user_repo = UserRepository(self.db)
         resp = BackofficeOrderResponse.model_validate(order)
         resp.user = user_repo.get_by_id(order.user_id)
         
