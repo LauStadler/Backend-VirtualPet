@@ -48,6 +48,7 @@ class OrderResponse(BaseModel):
     items: list[OrderItemResponse]
     created_at: datetime
     updated_at: datetime
+    intentos: int = 0
 
     model_config = {"from_attributes": True}
 
@@ -100,5 +101,6 @@ class BackofficeOrderResponse(BaseModel):
     user: Optional[UserSummary] = None
     rider_id: Optional[int] = None
     rider: Optional[UserSummary] = None
+    intentos: int = 0
 
     model_config = {"from_attributes": True}

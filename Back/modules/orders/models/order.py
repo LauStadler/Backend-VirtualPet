@@ -80,6 +80,9 @@ class Order(Base):
     billing_requested_at = Column(DateTime, nullable=True)
     """Fecha en la que se solicitó la facturación."""
 
+    intentos = Column(Integer, default=0, nullable=False)
+    """Cantidad de intentos de entrega fallidos (máximo 3)."""
+
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(
         DateTime,

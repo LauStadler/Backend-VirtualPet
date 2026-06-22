@@ -296,6 +296,12 @@ class OrderService(IOrderService):
             resp.user = user_repo.get_by_id(order.user_id)
             return resp
 
+        # El backoffice (que llama a cambiar_estado) NO puede cambiar el estado a despachado ni a entregado.
+        # Esos estados son de resorte exclusivo del repartidor (rider) a través de la app móvil.
+        if nuevo_estado in (OrderEstado.DESPACHADO, OrderEstado.ENTREGADO):
+            print(f"DEBUG: Backoffice attempted to set forbidden state: {nuevo_estado} for order {order_id}")
+            raise TransicionEstadoInvalidaError(estado_actual, nuevo_estado)
+
         transiciones_permitidas = TRANSICIONES_VALIDAS.get(estado_actual, [])
 
         # Verificar que la transición solicitada está permitida para el estado actual
@@ -377,6 +383,7 @@ class OrderService(IOrderService):
     def devolver_pedido(self, order_id: int, rider_id: int) -> OrderResponse:
         """
         Devuelve un pedido al depósito, dejándolo disponible para otro repartidor.
+        Si alcanza los 3 intentos fallidos, se cancela automáticamente.
         """
         order = self.repo.get_by_id(order_id)
         if not order:
@@ -385,9 +392,19 @@ class OrderService(IOrderService):
         if order.rider_id != rider_id:
             raise Exception("No puedes devolver un pedido que no tienes asignado")
 
-        # Al devolver, el pedido vuelve a estar disponible para ser tomado
+        # Incrementar el número de intentos fallidos
+        order.intentos = (order.intentos or 0) + 1
+
+        # Al devolver, siempre se libera el repartidor
         self.repo.asignar_rider(order, None)
-        self.repo.actualizar_estado(order, OrderEstado.PREPARADO)
+
+        if order.intentos >= 3:
+            # Cancelación automática por exceso de intentos fallidos
+            self.repo.actualizar_estado(order, OrderEstado.CANCELADO)
+        else:
+            # Vuelve a estar disponible en el depósito para otros riders
+            self.repo.actualizar_estado(order, OrderEstado.PREPARADO)
+
         self.db.commit()
         self.db.refresh(order)
         return OrderResponse.model_validate(order)

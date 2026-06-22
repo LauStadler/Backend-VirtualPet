@@ -273,6 +273,13 @@ USUARIOS = [
         "password": "Cliente1234",
         "role":     UserRole.CLIENTE,
     },
+    {
+        "nombre":   "Juan",
+        "apellido": "Delivery",
+        "email":    "rider@virtualpet.com",
+        "password": "rider123",
+        "role":     UserRole.DELIVERY,
+    },
 ]
 
 
