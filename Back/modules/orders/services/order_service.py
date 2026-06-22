@@ -226,9 +226,12 @@ class OrderService(IOrderService):
         
         orders = self.repo.list_all()
         
-        # Hidratación manual de usuarios (Búsqueda por lote)
+        # Hidratación manual de usuarios (Búsqueda por lote de clientes y repartidores)
         user_ids = list(set(o.user_id for o in orders))
-        users = user_repo.get_by_ids(user_ids)
+        rider_ids = list(set(o.rider_id for o in orders if o.rider_id is not None))
+        all_user_ids = list(set(user_ids + rider_ids))
+        
+        users = user_repo.get_by_ids(all_user_ids)
         user_map = {u.id: u for u in users}
 
         responses = []
@@ -236,6 +239,8 @@ class OrderService(IOrderService):
             resp = BackofficeOrderResponse.model_validate(o)
             # Asignamos el usuario si existe, manejando resiliencia si no se encuentra
             resp.user = user_map.get(o.user_id)
+            if o.rider_id:
+                resp.rider = user_map.get(o.rider_id)
             responses.append(resp)
             
         return responses
@@ -253,6 +258,8 @@ class OrderService(IOrderService):
         
         resp = BackofficeOrderResponse.model_validate(order)
         resp.user = user_repo.get_by_id(order.user_id)
+        if order.rider_id:
+            resp.rider = user_repo.get_by_id(order.rider_id)
         
         return resp
 

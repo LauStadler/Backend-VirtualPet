@@ -13,6 +13,7 @@ from shared.dependencies.auth import get_current_user, require_role
 from modules.auth.models.user import User, UserRole
 from modules.orders.services.order_service import OrderService, OrdenNoEncontradaError, TransicionEstadoInvalidaError
 from modules.orders.schemas.order_schema import OrderResponse
+from shared.utils.websocket_manager import manager
 
 router = APIRouter()
 
@@ -51,14 +52,24 @@ def list_mine(
     summary="Reclamar pedido para entrega",
     description="Asigna el pedido al repartidor actual y cambia su estado a 'DESPACHADO'.",
 )
-def claim_order(
+async def claim_order(
     order_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.DELIVERY)),
 ) -> OrderResponse:
     service = OrderService(db)
     try:
-        return service.reclamar_pedido(order_id, current_user.id)
+        res = service.reclamar_pedido(order_id, current_user.id)
+        # Notificar vía WebSocket al backoffice
+        try:
+            full_order_data = service.obtener_una_backoffice(order_id)
+            await manager.broadcast({
+                "type": "order_updated",
+                "order": full_order_data.model_dump(mode='json')
+            })
+        except Exception as ws_err:
+            print(f"Error broadcasting order claim update: {ws_err}")
+        return res
     except OrdenNoEncontradaError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except TransicionEstadoInvalidaError as e:
@@ -73,18 +84,58 @@ def claim_order(
     summary="Confirmar entrega exitosa",
     description="Marca el pedido como 'ENTREGADO'. Debe estar asignado al repartidor actual.",
 )
-def complete_order(
+async def complete_order(
     order_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.DELIVERY)),
 ) -> OrderResponse:
     service = OrderService(db)
     try:
-        return service.completar_entrega(order_id, current_user.id)
+        res = service.completar_entrega(order_id, current_user.id)
+        # Notificar vía WebSocket al backoffice
+        try:
+            full_order_data = service.obtener_una_backoffice(order_id)
+            await manager.broadcast({
+                "type": "order_updated",
+                "order": full_order_data.model_dump(mode='json')
+            })
+        except Exception as ws_err:
+            print(f"Error broadcasting order complete update: {ws_err}")
+        return res
     except OrdenNoEncontradaError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except TransicionEstadoInvalidaError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post(
+    "/{order_id}/return",
+    response_model=OrderResponse,
+    summary="Devolver pedido al depósito",
+    description="Devuelve el pedido al depósito (estado 'PREPARADO' y rider_id nulo). Debe estar asignado al repartidor actual.",
+)
+async def return_order(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.DELIVERY)),
+) -> OrderResponse:
+    service = OrderService(db)
+    try:
+        res = service.devolver_pedido(order_id, current_user.id)
+        # Notificar vía WebSocket al backoffice
+        try:
+            full_order_data = service.obtener_una_backoffice(order_id)
+            await manager.broadcast({
+                "type": "order_updated",
+                "order": full_order_data.model_dump(mode='json')
+            })
+        except Exception as ws_err:
+            print(f"Error broadcasting order return update: {ws_err}")
+        return res
+    except OrdenNoEncontradaError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 

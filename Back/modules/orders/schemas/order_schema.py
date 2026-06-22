@@ -98,5 +98,7 @@ class BackofficeOrderResponse(BaseModel):
     updated_at: datetime
     user_id: int
     user: Optional[UserSummary] = None
+    rider_id: Optional[int] = None
+    rider: Optional[UserSummary] = None
 
     model_config = {"from_attributes": True}
