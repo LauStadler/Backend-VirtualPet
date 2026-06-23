@@ -30,7 +30,7 @@ class ChatbotService:
                 "\n- Política de facturación: Se puede solicitar factura indicando el CUIT. "
                 "Condiciones: El pedido debe estar confirmado (no cancelado) y debe ser del mes actual. "
                 "\n\nSi el usuario quiere facturar un pedido, pídele el ID del pedido y su CUIT. "
-                "Luego usa la función 'solicitar_facturacion'."
+                "Luego usa la función 'solicitar_facturacion'. IMPORTANTE: El usuario debe haber iniciado sesión para facturar, si la función indica que debe iniciar sesión, indícaselo amablemente."
             )
         )
 
@@ -38,6 +38,9 @@ class ChatbotService:
         """
         Registra la solicitud de facturación para un pedido específico con un CUIT dado.
         """
+        if getattr(self, 'current_user_id', None) is None:
+            return "Para solicitar una factura, debes iniciar sesión en tu cuenta primero."
+
         order = self.db.query(Order).filter(Order.id == pedido_id).first()
         
         if not order:
@@ -64,6 +67,8 @@ class ChatbotService:
     async def generate_response(self, message: str, user_id: int = None, history: list = None) -> str:
         if not GEMINI_API_KEY:
             return "Lo siento, el servicio de Chatbot no está configurado (falta API Key)."
+
+        self.current_user_id = user_id
 
         # Formatear el historial para Gemini si existe
         gemini_history = []

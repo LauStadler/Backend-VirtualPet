@@ -5,7 +5,7 @@ Expone endpoints exclusivos para repartidores (Riders).
 Permite visualizar pedidos disponibles, tomarlos y marcar entregas/devoluciones.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from shared.dependencies.database import get_db
@@ -16,6 +16,23 @@ from modules.orders.schemas.order_schema import OrderResponse
 from shared.utils.websocket_manager import manager
 
 router = APIRouter()
+
+
+@router.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    print("New Delivery WS connection attempt...")
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Mantener la conexión abierta
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        print("Delivery WS Client disconnected")
+        manager.disconnect(websocket)
+    except Exception as e:
+        print(f"Delivery WS Unexpected error: {e}")
+        manager.disconnect(websocket)
+
 
 
 @router.get(
