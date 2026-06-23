@@ -33,7 +33,7 @@ TRANSICIONES_VALIDAS: dict[OrderEstado, list[OrderEstado]] = {
     OrderEstado.PENDIENTE: [OrderEstado.EN_PREPARACION, OrderEstado.CANCELADO],
     OrderEstado.EN_PREPARACION: [OrderEstado.PENDIENTE, OrderEstado.PREPARADO, OrderEstado.CANCELADO],
     OrderEstado.PREPARADO: [OrderEstado.DESPACHADO, OrderEstado.EN_PREPARACION, OrderEstado.CANCELADO],
-    OrderEstado.DESPACHADO: [OrderEstado.PREPARADO, OrderEstado.ENTREGADO, OrderEstado.CANCELADO],
+    OrderEstado.DESPACHADO: [OrderEstado.PREPARADO, OrderEstado.ENTREGADO],
     OrderEstado.ENTREGADO: [], # Estado final
     OrderEstado.CANCELADO: [], # Estado final
 }
@@ -60,6 +60,9 @@ class Order(Base):
 
     rider_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     """ID del repartidor asignado a la orden (Solo para despacho/entrega)."""
+
+    last_rider_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    """ID del último repartidor que intentó entregar la orden (en caso de devolución)."""
 
     estado = Column(
         String(20),

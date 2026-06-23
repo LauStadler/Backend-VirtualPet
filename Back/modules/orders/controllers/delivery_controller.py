@@ -174,8 +174,19 @@ def list_history(
     from sqlalchemy import or_
     stmt = (
         db.query(Order)
-        .filter(Order.rider_id == current_user.id)
-        .filter(or_(Order.estado == OrderEstado.ENTREGADO, Order.estado == OrderEstado.PREPARADO))
+        .filter(
+            or_(
+                Order.rider_id == current_user.id,
+                Order.last_rider_id == current_user.id
+            )
+        )
+        .filter(
+            or_(
+                Order.estado == OrderEstado.ENTREGADO,
+                Order.estado == OrderEstado.PREPARADO,
+                Order.estado == OrderEstado.CANCELADO
+            )
+        )
         .order_by(Order.updated_at.desc())
     )
     orders = stmt.all()

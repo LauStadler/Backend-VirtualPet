@@ -49,6 +49,8 @@ class OrderResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     intentos: int = 0
+    billing_cuit: Optional[str] = None
+    billing_requested_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 
@@ -64,6 +66,8 @@ class OrderSummaryResponse(BaseModel):
     estado: OrderEstado
     total: float
     created_at: datetime
+    billing_cuit: Optional[str] = None
+    billing_requested_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 
@@ -102,5 +106,7 @@ class BackofficeOrderResponse(BaseModel):
     rider_id: Optional[int] = None
     rider: Optional[UserSummary] = None
     intentos: int = 0
+    billing_cuit: Optional[str] = None
+    billing_requested_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}

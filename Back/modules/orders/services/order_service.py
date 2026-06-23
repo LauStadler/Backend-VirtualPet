@@ -356,6 +356,7 @@ class OrderService(IOrderService):
             raise Exception("Este pedido ya ha sido tomado por otro repartidor")
 
         self.repo.asignar_rider(order, rider_id)
+        order.last_rider_id = None
         self.repo.actualizar_estado(order, OrderEstado.DESPACHADO)
         self.db.commit()
         self.db.refresh(order)
@@ -396,6 +397,7 @@ class OrderService(IOrderService):
         order.intentos = (order.intentos or 0) + 1
 
         # Al devolver, siempre se libera el repartidor
+        order.last_rider_id = rider_id
         self.repo.asignar_rider(order, None)
 
         if order.intentos >= 3:
