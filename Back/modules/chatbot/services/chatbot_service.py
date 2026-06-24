@@ -87,10 +87,13 @@ class ChatbotService:
             try:
                 import asyncio
                 from shared.utils.websocket_manager import manager
-                from modules.orders.schemas.order_schema import BackofficeOrderResponse
+                from modules.orders.services.order_service import OrderService
                 
-                # Serializar el estado de la orden actualizada al esquema del Backoffice
-                order_data = BackofficeOrderResponse.model_validate(order).model_dump(mode='json')
+                # Utilizar el servicio de órdenes para obtener el pedido completamente hidratado
+                # (con los datos del cliente y del repartidor) para evitar borrar info en el front
+                order_service = OrderService(self.db)
+                full_order = order_service.obtener_una_backoffice(pedido_id)
+                order_data = full_order.model_dump(mode='json')
                 
                 # Obtener el bucle de eventos asíncronos activo de FastAPI y encolar el envío
                 loop = asyncio.get_running_loop()
