@@ -56,6 +56,14 @@ class ChatbotService:
         
         if not order:
             return f"No encontré el pedido con ID {pedido_id}."
+
+        # Verificar propiedad del pedido (Evitar vulnerabilidad IDOR de facturación cruzada)
+        if order.user_id != self.current_user_id:
+            return (
+                f"El pedido con ID {pedido_id} no pertenece a tu cuenta de usuario. "
+                "Solo puedes solicitar la facturación de tus propios pedidos. "
+                "Por favor, verifica el número de pedido e intenta nuevamente."
+            )
         
         if order.estado == OrderEstado.CANCELADO:
             return f"El pedido {pedido_id} está cancelado y no puede ser facturado."
