@@ -82,6 +82,27 @@ class ChatbotService:
         
         try:
             self.db.commit()
+            
+            # Notificar en tiempo real al Backoffice vía WebSocket (Usa el canal existente /backoffice/ws)
+            try:
+                import asyncio
+                from shared.utils.websocket_manager import manager
+                from modules.orders.schemas.order_schema import BackofficeOrderResponse
+                
+                # Serializar el estado de la orden actualizada al esquema del Backoffice
+                order_data = BackofficeOrderResponse.model_validate(order).model_dump(mode='json')
+                
+                # Obtener el bucle de eventos asíncronos activo de FastAPI y encolar el envío
+                loop = asyncio.get_running_loop()
+                if loop.is_running():
+                    loop.create_task(manager.broadcast({
+                        "type": "order_updated",
+                        "order": order_data
+                    }))
+            except Exception as ws_err:
+                # Evitar que fallos menores de red en sockets afecten el guardado exitoso en base de datos
+                print(f"Advertencia: No se pudo despachar la notificación WebSocket de facturación: {ws_err}")
+                
         except Exception as e:
             self.db.rollback()
             # Registrar el error técnico en los logs del servidor
