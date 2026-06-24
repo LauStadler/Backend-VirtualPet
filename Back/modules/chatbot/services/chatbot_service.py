@@ -41,6 +41,17 @@ class ChatbotService:
         if getattr(self, 'current_user_id', None) is None:
             return "Para solicitar una factura, debes iniciar sesión en tu cuenta primero."
 
+        # Limpiar el CUIT (quitar guiones, puntos, espacios y caracteres no numéricos)
+        clean_cuit = "".join(c for c in cuit if c.isdigit())
+        
+        # Validar que tenga exactamente 11 dígitos
+        if len(clean_cuit) != 11:
+            return (
+                f"El CUIT proporcionado ('{cuit}') no es válido. "
+                "Debe contener exactamente 11 números (por ejemplo: 20123456789 o 20-12345678-9). "
+                "Por favor, verifícalo y vuelve a indicármelo."
+            )
+
         order = self.db.query(Order).filter(Order.id == pedido_id).first()
         
         if not order:
@@ -58,11 +69,19 @@ class ChatbotService:
             return f"Lo siento, el pedido {pedido_id} fue realizado hace más de 30 días ({order.created_at.strftime('%d/%m/%Y')}) y ya no puede ser facturado por este medio."
         
         # Registro de facturación
-        order.billing_cuit = cuit
+        order.billing_cuit = clean_cuit
         order.billing_requested_at = ahora
-        self.db.commit()
         
-        return f"¡Perfecto! He registrado la solicitud de factura para el pedido {pedido_id} con el CUIT {cuit}. El equipo de backoffice se encargará del resto."
+        try:
+            self.db.commit()
+        except Exception as e:
+            self.db.rollback()
+            # Registrar el error técnico en los logs del servidor
+            import traceback
+            print(f"Error al guardar facturación en DB para pedido {pedido_id}: {str(e)}\n{traceback.format_exc()}")
+            return "Hubo un problema interno al registrar los datos en nuestro sistema. Por favor, intenta nuevamente en unos minutos."
+        
+        return f"¡Perfecto! He registrado la solicitud de factura para el pedido {pedido_id} con el CUIT {clean_cuit}. El equipo de backoffice se encargará del resto."
 
     async def generate_response(self, message: str, user_id: int = None, history: list = None) -> str:
         if not GEMINI_API_KEY:
@@ -87,7 +106,9 @@ class ChatbotService:
             response = chat.send_message(message)
             return response.text
         except Exception as e:
+            # Registrar el traceback completo en los logs de Docker para el desarrollador
             import traceback
             error_msg = f"Error en ChatbotService: {str(e)}\n{traceback.format_exc()}"
             print(error_msg)
-            return f"Lo siento, tuve un problema interno. Error técnico: {str(e)}"
+            # Retornar un mensaje amigable y limpio al usuario final
+            return "Lo siento, ocurrió un inconveniente interno al procesar tu solicitud. Por favor, intenta nuevamente en unos momentos."
