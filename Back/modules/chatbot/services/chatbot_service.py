@@ -2,7 +2,6 @@ import os
 import google.generativeai as genai
 from datetime import datetime
 from sqlalchemy.orm import Session
-from modules.orders.models.order import Order, OrderEstado
 from fastapi import HTTPException
 import json
 
@@ -50,83 +49,31 @@ class ChatbotService:
 
     def solicitar_facturacion(self, pedido_id: int, cuit: str) -> str:
         """
-        Registra la solicitud de facturación para un pedido específico con un CUIT dado.
+        Registra la solicitud de facturación delegando al OrderService,
+        respetando las fronteras del monolito modular.
         """
         if getattr(self, 'current_user_id', None) is None:
             return "Para solicitar una factura, debes iniciar sesión en tu cuenta primero."
 
-        # Limpiar el CUIT (quitar guiones, puntos, espacios y caracteres no numéricos)
-        clean_cuit = "".join(c for c in cuit if c.isdigit())
-        
-        # Validar que tenga exactamente 11 dígitos
-        if len(clean_cuit) != 11:
-            return (
-                f"El CUIT proporcionado ('{cuit}') no es válido. "
-                "Debe contener exactamente 11 números (por ejemplo: 20123456789 o 20-12345678-9). "
-                "Por favor, verifícalo y vuelve a indicármelo."
-            )
+        from modules.orders.services.order_service import OrderService, OrdenNoEncontradaError
 
-        order = self.db.query(Order).filter(Order.id == pedido_id).first()
-        
-        if not order:
-            return f"No encontré el pedido con ID {pedido_id}."
-
-        # Verificar propiedad del pedido (Evitar vulnerabilidad IDOR de facturación cruzada)
-        if order.user_id != self.current_user_id:
-            return (
-                f"El pedido con ID {pedido_id} no pertenece a tu cuenta de usuario. "
-                "Solo puedes solicitar la facturación de tus propios pedidos. "
-                "Por favor, verifica el número de pedido e intenta nuevamente."
-            )
-        
-        if order.estado == OrderEstado.CANCELADO:
-            return f"El pedido {pedido_id} está cancelado y no puede ser facturado."
-        
-        # Validación de rango de 30 días
-        from datetime import timedelta
-        ahora = datetime.now()
-        fecha_limite = order.created_at + timedelta(days=30)
-        
-        if ahora > fecha_limite:
-            return f"Lo siento, el pedido {pedido_id} fue realizado hace más de 30 días ({order.created_at.strftime('%d/%m/%Y')}) y ya no puede ser facturado por este medio."
-        
-        # Registro de facturación
-        order.billing_cuit = clean_cuit
-        order.billing_requested_at = ahora
-        
         try:
-            self.db.commit()
-            
-            # Notificar en tiempo real al Backoffice vía WebSocket (Usa el canal existente /backoffice/ws)
-            try:
-                import asyncio
-                from shared.utils.websocket_manager import manager
-                from modules.orders.services.order_service import OrderService
-                
-                # Utilizar el servicio de órdenes para obtener el pedido completamente hidratado
-                # (con los datos del cliente y del repartidor) para evitar borrar info en el front
-                order_service = OrderService(self.db)
-                full_order = order_service.obtener_una_backoffice(pedido_id)
-                order_data = full_order.model_dump(mode='json')
-                
-                # Obtener el bucle de eventos asíncronos activo de FastAPI y encolar el envío
-                loop = asyncio.get_running_loop()
-                if loop.is_running():
-                    loop.create_task(manager.broadcast({
-                        "type": "order_updated",
-                        "order": order_data
-                    }))
-            except Exception as ws_err:
-                # Evitar que fallos menores de red en sockets afecten el guardado exitoso en base de datos
-                print(f"Advertencia: No se pudo despachar la notificación WebSocket de facturación: {ws_err}")
-                
+            order_service = OrderService(self.db)
+            order_service.solicitar_facturacion(
+                order_id=pedido_id,
+                user_id=self.current_user_id,
+                cuit=cuit
+            )
+        except (ValueError, OrdenNoEncontradaError, PermissionError) as domain_err:
+            # Retornar el mensaje amigable de error del negocio directamente
+            return str(domain_err)
         except Exception as e:
-            self.db.rollback()
             # Registrar el error técnico en los logs del servidor
             import traceback
-            print(f"Error al guardar facturación en DB para pedido {pedido_id}: {str(e)}\n{traceback.format_exc()}")
+            print(f"Error al solicitar facturación en ChatbotService para pedido {pedido_id}: {str(e)}\n{traceback.format_exc()}")
             return "Hubo un problema interno al registrar los datos en nuestro sistema. Por favor, intenta nuevamente en unos minutos."
-        
+
+        clean_cuit = "".join(c for c in cuit if c.isdigit())
         return f"¡Perfecto! He registrado la solicitud de factura para el pedido {pedido_id} con el CUIT {clean_cuit}. El equipo de backoffice se encargará del resto."
 
     async def generate_response(self, message: str, user_id: int = None, history: list = None) -> str:

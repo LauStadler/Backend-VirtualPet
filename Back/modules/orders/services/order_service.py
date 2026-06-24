@@ -110,6 +110,10 @@ class IOrderService(ABC):
     def devolver_pedido(self, order_id: int, rider_id: int) -> OrderResponse:
         pass
 
+    @abstractmethod
+    def solicitar_facturacion(self, order_id: int, user_id: int, cuit: str) -> Order:
+        pass
+
 
 class OrderService(IOrderService):
     """Lógica de negocio para creación y gestión del ciclo de vida de órdenes."""
@@ -410,3 +414,65 @@ class OrderService(IOrderService):
         self.db.commit()
         self.db.refresh(order)
         return OrderResponse.model_validate(order)
+
+    def solicitar_facturacion(self, order_id: int, user_id: int, cuit: str) -> Order:
+        """
+        Registra la solicitud de facturación para un pedido específico con un CUIT dado,
+        realizando todas las validaciones de negocio correspondientes.
+        """
+        # Limpiar el CUIT
+        clean_cuit = "".join(c for c in cuit if c.isdigit())
+        if len(clean_cuit) != 11:
+            raise ValueError(
+                f"El CUIT proporcionado ('{cuit}') no es válido. Debe contener exactamente 11 números."
+            )
+
+        order = self.repo.get_by_id(order_id)
+        if not order:
+            raise OrdenNoEncontradaError(f"No encontré el pedido con ID {order_id}.")
+
+        # Verificar propiedad del pedido (Evitar vulnerabilidad IDOR)
+        if order.user_id != user_id:
+            raise PermissionError(
+                f"El pedido con ID {order_id} no pertenece a tu cuenta de usuario."
+            )
+
+        if order.estado == OrderEstado.CANCELADO:
+            raise ValueError(f"El pedido {order_id} está cancelado y no puede ser facturado.")
+
+        # Validación de rango de 30 días
+        from datetime import datetime, timedelta
+        ahora = datetime.now()
+        fecha_limite = order.created_at + timedelta(days=30)
+        if ahora > fecha_limite:
+            raise ValueError(
+                f"El pedido {order_id} fue realizado hace más de 30 días y ya no puede ser facturado."
+            )
+
+        order.billing_cuit = clean_cuit
+        order.billing_requested_at = ahora
+
+        try:
+            self.db.commit()
+            
+            # Notificar en tiempo real al Backoffice vía WebSocket
+            try:
+                import asyncio
+                from shared.utils.websocket_manager import manager
+                full_order = self.obtener_una_backoffice(order_id)
+                order_data = full_order.model_dump(mode='json')
+                
+                loop = asyncio.get_running_loop()
+                if loop.is_running():
+                    loop.create_task(manager.broadcast({
+                        "type": "order_updated",
+                        "order": order_data
+                    }))
+            except Exception as ws_err:
+                print(f"Advertencia: No se pudo despachar la notificación WebSocket de facturación: {ws_err}")
+                
+        except Exception as e:
+            self.db.rollback()
+            raise e
+
+        return order
