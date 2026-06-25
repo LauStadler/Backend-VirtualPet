@@ -51,6 +51,8 @@ class OrderResponse(BaseModel):
     intentos: int = 0
     billing_cuit: Optional[str] = None
     billing_requested_at: Optional[datetime] = None
+    rider_id: Optional[int] = None
+    last_rider_id: Optional[int] = None
 
     model_config = {"from_attributes": True}
 
