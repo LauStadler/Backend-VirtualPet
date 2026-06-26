@@ -10,7 +10,7 @@ La trazabilidad detallada (historial de cambios con fechas) es una
 mejora planificada para una versión futura.
 """
 
-from sqlalchemy import Column, Integer, Float, String, ForeignKey, DateTime, Enum
+from sqlalchemy import Column, Integer, Float, String, DateTime, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from infrastructure.db.base_class import Base
@@ -58,11 +58,11 @@ class Order(Base):
     user_id = Column(Integer, nullable=False, index=True)
     """ID del usuario que realizó la compra (Referencia lógica)."""
 
-    rider_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
-    """ID del repartidor asignado a la orden (Solo para despacho/entrega)."""
+    rider_id = Column(Integer, nullable=True, index=True)
+    """ID del repartidor asignado a la orden (Solo para despacho/entrega). Referencia lógica desacoplada."""
 
-    last_rider_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
-    """ID del último repartidor que intentó entregar la orden (en caso de devolución)."""
+    last_rider_id = Column(Integer, nullable=True, index=True)
+    """ID del último repartidor que intentó entregar la orden (en caso de devolución). Referencia lógica desacoplada."""
 
     estado = Column(
         String(20),
